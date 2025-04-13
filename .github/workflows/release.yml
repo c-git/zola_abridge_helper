@@ -1,0 +1,25 @@
+name: Release Build Confirmation
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push: 
+    branches:
+      - main
+  pull_request: 
+    branches:
+      - main
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release_compile:
+    name: ReleaseCompile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: wykies/checkout@main
+      - uses: wykies/setup-rust-toolchain@main
+      - name: Run Release Compile
+        run: cargo check --all-features --release
