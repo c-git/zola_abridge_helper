@@ -11,17 +11,16 @@ mod stats;
 
 use crate::processing::walk_directory;
 use anyhow::Context;
-use std::{
-    io::{self, Write},
-    path::{Path, PathBuf},
-    time::Instant,
-};
+use processing::validate_zola_config;
+use std::{ops::RangeInclusive, path::PathBuf, time::Instant};
 use tracing::info;
 use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt as _, util::SubscriberInitExt as _};
 use version_control_clean_check::{CheckOptions, check_version_control};
 
 pub use cli::Cli;
 pub use stats::Stats;
+
+const PREFERRED_RANGE: RangeInclusive<usize> = 140..=180;
 
 /// Runs the body of the logic
 pub fn run(cli: &Cli) -> anyhow::Result<Stats> {
@@ -47,11 +46,13 @@ pub fn run(cli: &Cli) -> anyhow::Result<Stats> {
         )
     })?;
 
-    // start going down the content folder
-
-    // Walk tree and process files
     let start = Instant::now();
-    let result = walk_directory(&root_path, cli)?;
+
+    //Check description in config file for SEO length
+    let mut result = validate_zola_config(&root_path.join("config.toml"))?;
+
+    // Walk the content folder tree and process files
+    result += walk_directory(&root_path.join("content"), cli)?;
     info!(
         "Run duration: {} ms",
         Instant::now().duration_since(start).as_millis()

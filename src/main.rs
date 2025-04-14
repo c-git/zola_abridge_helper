@@ -16,12 +16,20 @@ fn main() -> anyhow::Result<()> {
             std::process::exit(2);
         }
     } else {
-        let msg = format!("Run FAILED! {} errors", stats.errors());
+        let msg = format!("Run FAILED! {} error(s)", stats.errors());
         error!("{msg}");
         bail!("{msg}");
     }
     if !cli.ignore_seo && stats.seo_warnings() > 0 {
-        println!("There are {} SEO warnings", stats.seo_warnings());
+        println!(
+            "There {} {} SEO warnings",
+            if stats.seo_warnings() == 1 {
+                "is"
+            } else {
+                "are"
+            },
+            stats.seo_warnings()
+        );
         std::process::exit(3);
     }
     Ok(())
