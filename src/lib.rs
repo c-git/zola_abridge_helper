@@ -9,7 +9,7 @@ mod cli;
 mod processing;
 mod stats;
 
-use crate::processing::walk_directory;
+use crate::processing::check_path;
 use anyhow::Context;
 use processing::validate_zola_config;
 use std::{ops::RangeInclusive, path::PathBuf, time::Instant};
@@ -52,7 +52,7 @@ pub fn run(cli: &Cli) -> anyhow::Result<Stats> {
     let mut result = validate_zola_config(&root_path.join("config.toml"))?;
 
     // Walk the content folder tree and process files
-    result += walk_directory(&root_path.join("content"), cli)?;
+    result += check_path(&root_path.join("content"), cli, None)?;
     info!(
         "Run duration: {} ms",
         Instant::now().duration_since(start).as_millis()

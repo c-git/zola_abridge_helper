@@ -1,7 +1,10 @@
 use crate::{PREFERRED_RANGE, cli::Cli, stats::Stats};
 
 use anyhow::Context;
-use std::{fs, path::Path};
+use std::{
+    fs::{self, DirEntry},
+    path::Path,
+};
 use toml_edit::DocumentMut;
 use tracing::{error, trace, warn};
 
@@ -38,10 +41,14 @@ pub fn validate_zola_config(path: &Path) -> anyhow::Result<Stats> {
     Ok(result)
 }
 
-pub fn walk_directory(root_path: &Path, cli: &Cli) -> anyhow::Result<Stats> {
+pub fn check_path(
+    root_path: &Path,
+    cli: &Cli,
+    section_name: Option<&str>,
+) -> anyhow::Result<Stats> {
     let mut result = Stats::new();
     if root_path.is_file() {
-        match process_file(root_path, cli)
+        match process_file(root_path, cli, section_name)
             .with_context(|| format!("Processing failed for: {root_path:?}"))
         {
             Ok(stats) => result += stats,
@@ -51,20 +58,63 @@ pub fn walk_directory(root_path: &Path, cli: &Cli) -> anyhow::Result<Stats> {
             }
         }
     } else {
-        for entry in fs::read_dir(root_path)
+        let mut dir_entries = fs::read_dir(root_path)
             .with_context(|| format!("Failed to read directory: {root_path:?}"))?
-        {
-            let entry =
-                entry.with_context(|| format!("Failed to extract a DirEntry in {root_path:?}"))?;
-            let path = entry.path();
-            result += walk_directory(&path, cli)?;
+            .map(|x| x.with_context(|| format!("Failed to extract a DirEntry in {root_path:?}")))
+            .collect::<anyhow::Result<Vec<DirEntry>>>()?;
+        let section_info = extract_section_info(&mut dir_entries)?;
+        let mut sub_section_name = None;
+        if let Some((name, sec_result)) = section_info {
+            sub_section_name = Some(name);
+            result += sec_result;
+        }
+        for entry in dir_entries {
+            result += check_path(
+                &entry.path(),
+                cli,
+                sub_section_name.as_ref().map(|x| x.as_ref()),
+            )?;
         }
     }
 
     Ok(result)
 }
 
-fn process_file(path: &Path, cli: &Cli) -> anyhow::Result<Stats> {
+fn extract_section_info(
+    dir_entries: &mut Vec<DirEntry>,
+) -> anyhow::Result<Option<(String, Stats)>> {
+    // Check if there is a file with section information in the folder
+    let section_idx = dir_entries.iter().enumerate().find_map(|(i, entry)| {
+        if entry.file_name() == "_index.md" {
+            match entry.file_type() {
+                Ok(file_type) => {
+                    if file_type.is_file() {
+                        Some(Ok(i))
+                    } else {
+                        None
+                    }
+                }
+                Err(e) => Some(Err(e).with_context(|| {
+                    format!("failed to get file type for: {:?}", entry.file_name())
+                })),
+            }
+        } else {
+            None
+        }
+    });
+
+    let Some(section_idx) = section_idx else {
+        // No section file found
+        return Ok(None);
+    };
+
+    let section_idx = section_idx?; // Return if there was an error getting section info
+    let section_dir_entry = dir_entries.swap_remove(section_idx);
+    let result = FileData::new_from_path(&section_dir_entry.path())?.extract_section_info()?;
+    Ok(Some(result))
+}
+
+fn process_file(path: &Path, cli: &Cli, section_name: Option<&str>) -> anyhow::Result<Stats> {
     let mut result = Stats::new();
     // TODO 1: todo!("need to determine file type and")
     if !should_skip_file(path) {
