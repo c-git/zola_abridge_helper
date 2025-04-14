@@ -15,10 +15,14 @@ fn main() -> anyhow::Result<()> {
             println!("{} files would have been changed", stats.changed());
             std::process::exit(2);
         }
-        Ok(())
     } else {
         let msg = format!("Run FAILED! {} errors", stats.errors());
         error!("{msg}");
         bail!("{msg}");
     }
+    if !cli.ignore_seo && stats.seo_warnings() > 0 {
+        println!("There are {} SEO warnings", stats.seo_warnings());
+        std::process::exit(3);
+    }
+    Ok(())
 }

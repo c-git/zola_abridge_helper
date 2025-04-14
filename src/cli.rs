@@ -28,11 +28,21 @@ pub struct Cli {
     /// It is required for it to be in a repository with a clean working tree.
     pub root_path: String,
 
+    /// When enabled seo errors do not cause the run to fail
+    ///
+    /// If there are no other reasons for a run to fail
+    /// and there are SEO warnings then a return code of 3 is used
+    #[arg(long, short)]
+    pub ignore_seo: bool,
+
     /// If set will not modify any files and only report how many files would
     /// have been changed
     ///
-    /// Return codes in this mode: (0) No files would have been changed (1)
-    /// Error Occurred (2) Files would have been changed
+    /// Return codes in this mode:
+    /// - (0) No files would have been changed
+    /// - (1) Error Occurred
+    /// - (2) Files would have been changed
+    /// - (3) SEO warnings present
     #[arg(long = "check", short = 'c')]
     pub should_check_only: bool,
 

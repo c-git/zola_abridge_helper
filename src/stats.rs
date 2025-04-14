@@ -9,17 +9,13 @@ pub struct Stats {
     changed: u16,
     not_changed: u16,
     skipped: u16,
+    seo_warnings: u16,
     errors: u16,
 }
 
 impl Stats {
     pub(crate) fn new() -> Self {
-        Self {
-            changed: 0,
-            not_changed: 0,
-            skipped: 0,
-            errors: 0,
-        }
+        Self::default()
     }
 
     /// Gets the current value of `changed`
@@ -42,6 +38,11 @@ impl Stats {
         self.errors
     }
 
+    /// Gets the current value of `seo_failures`
+    pub fn seo_warnings(&self) -> u16 {
+        self.seo_warnings
+    }
+
     /// Increments `changed` by 1 (saturating if applicable)
     pub fn inc_changed(&mut self) {
         self.changed = self.changed.saturating_add(1);
@@ -61,14 +62,27 @@ impl Stats {
     pub fn inc_errors(&mut self) {
         self.errors = self.errors.saturating_add(1);
     }
+
+    /// Increments `seo_warnings` by 1 (saturating if applicable)
+    pub fn inc_seo_warnings(&mut self) {
+        self.seo_warnings = self.seo_warnings.saturating_add(1);
+    }
 }
 
 impl AddAssign for Stats {
     fn add_assign(&mut self, rhs: Self) {
-        self.changed += rhs.changed;
-        self.not_changed += rhs.not_changed;
-        self.skipped += rhs.skipped;
-        self.errors += rhs.errors;
+        let Self {
+            changed,
+            not_changed,
+            skipped,
+            seo_warnings,
+            errors,
+        } = self;
+        *changed += rhs.changed;
+        *not_changed += rhs.not_changed;
+        *skipped += rhs.skipped;
+        *seo_warnings += rhs.seo_warnings;
+        *errors += rhs.errors;
     }
 }
 
