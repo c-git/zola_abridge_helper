@@ -47,17 +47,6 @@ pub fn run(cli: &Cli) -> anyhow::Result<Stats> {
         )
     })?;
 
-    // Confirm user wants to make changes
-    if !cli.should_check_only && !cli.unattended && !confirm_proceed(&root_path) {
-        println!("Aborted at users request");
-        return Ok(Stats::default());
-    }
-
-    // Change current working directory to target folder
-    // env::set_current_dir(&root_path).context("Failed change working directory to
-    // {root_path:?}")?;
-
-    // TODO 1: check if folder contains the config.toml so we can check it before we
     // start going down the content folder
 
     // Walk tree and process files
@@ -69,18 +58,6 @@ pub fn run(cli: &Cli) -> anyhow::Result<Stats> {
     );
     println!("Run Completed");
     Ok(result)
-}
-
-fn confirm_proceed(root_path: &Path) -> bool {
-    print!("Do you whish to allow changes at {root_path:?}? (enter 'yes' to proceed) ");
-    io::stdout().flush().expect("Failed to flush to stdout");
-
-    let mut user_input = String::new();
-    io::stdin()
-        .read_line(&mut user_input)
-        .expect("Failed to read line");
-
-    user_input.trim().to_lowercase() == "yes"
 }
 
 /// Initializes tracing

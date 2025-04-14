@@ -28,10 +28,6 @@ pub struct Cli {
     /// It is required for it to be in a repository with a clean working tree.
     pub root_path: String,
 
-    /// If set will not prompt for confirmation before running
-    #[arg(long, short)]
-    pub unattended: bool,
-
     /// If set will not modify any files and only report how many files would
     /// have been changed
     ///
