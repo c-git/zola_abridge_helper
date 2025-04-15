@@ -17,30 +17,35 @@ pub fn validate_zola_config(path: &Path, cli: &Cli) -> anyhow::Result<Stats> {
     let toml_doc = contents
         .parse::<DocumentMut>()
         .with_context(|| format!("Failed to parse config at: {path:?}"))?;
+    let result = check_description(&toml_doc, cli, path);
+    Ok(result)
+}
+
+fn check_description(toml_doc: &DocumentMut, cli: &Cli, path: &Path) -> Stats {
     let mut result = Stats::new();
     let Some(description) = toml_doc.get("description") else {
         if !cli.ignore_missing_description {
             result.inc_seo_warnings();
-            warn!("(SEO) failed to find description in config at: {path:?}");
+            warn!("(SEO) failed to find description in file at: {path:?}");
         }
-        return Ok(result);
+        return result;
     };
     let Some(description) = description.as_str() else {
         result.inc_seo_warnings();
         warn!(
-            "(SEO) failed to use description as string in config at: {path:?}. Value found: {description:?}"
+            "(SEO) failed description is not string in file at: {path:?}. Value found: {description:?}"
         );
-        return Ok(result);
+        return result;
     };
     if !is_description_length_in_preferred_range(description) {
         result.inc_seo_warnings();
         warn!(
-            "(SEO) config description outside of the preferred range at {}. Preferred range: {:?}, Config Path: {path:?}",
+            "(SEO) description outside of the preferred range. Actual Length {}. Preferred range: {:?}, Path: {path:?}",
             description.len(),
             PREFERRED_RANGE
         );
     }
-    Ok(result)
+    result
 }
 
 pub fn check_path(
