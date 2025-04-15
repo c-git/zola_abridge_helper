@@ -39,11 +39,13 @@ fn check_description(toml_doc: &DocumentMut, cli: &Cli, path: &Path) -> Stats {
     };
     if !is_description_length_in_preferred_range(description) {
         result.inc_seo_warnings();
-        warn!(
-            "(SEO) description outside of the preferred range. Actual Length {}. Preferred range: {:?}, Path: {path:?}",
-            description.len(),
-            PREFERRED_RANGE
-        );
+        if !cli.ignore_seo {
+            warn!(
+                "(SEO) description outside of the preferred range. Actual Length {}. Preferred range: {:?}, Path: {path:?}",
+                description.len(),
+                PREFERRED_RANGE
+            );
+        }
     }
     result
 }
