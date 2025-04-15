@@ -123,17 +123,17 @@ fn extract_section_info(
 
 fn process_file(path: &Path, cli: &Cli, section_name: Option<&str>) -> anyhow::Result<Stats> {
     let mut result = Stats::new();
-    // TODO 1: todo!("need to determine file type and")
     if !should_skip_file(path) {
-        let data = FileData::new_from_path(path)?;
-        // data.update_front_matter(last_edit_date)
-        //     .context("Failed to update front_matter")?;
+        let mut data = FileData::new_from_path(path)?;
+        result += data.check_description(cli)?;
+        data.update_series_and_tags(section_name)
+            .context("failed to update tags and/or series")?;
         if data.is_changed() {
             result.inc_changed();
             if cli.should_check_only {
                 warn!("(Change here) {path:?}");
             } else {
-                data.write().context("Failed to write to file")?;
+                data.write().context("failed to write to file")?;
                 trace!("(Changed)     {path:?}");
             }
         } else {

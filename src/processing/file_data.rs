@@ -6,7 +6,9 @@ use regex::Regex;
 use toml_edit::DocumentMut;
 use tracing::error;
 
-use crate::Stats;
+use crate::{Cli, Stats};
+
+use super::check_description;
 
 static TOML_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
@@ -111,5 +113,62 @@ impl<'a> FileData<'a> {
         let content = caps.get(2).map_or("", |m| m.as_str()).to_string();
 
         Ok(FileData::new(path, front_matter, content))
+    }
+
+    pub(crate) fn check_description(&self, cli: &Cli) -> anyhow::Result<Stats> {
+        let toml_doc = self.front_matter_as_toml()?;
+        Ok(check_description(&toml_doc, cli, self.path))
+    }
+
+    pub(crate) fn update_series_and_tags(
+        &mut self,
+        section_name: Option<&str>,
+    ) -> anyhow::Result<()> {
+        let Some(section_name) = section_name else {
+            return Ok(());
+        };
+        let mut doc = self.front_matter_as_toml()?;
+
+        // Set series
+        let key_extra = "extra";
+        let key_series = "series";
+        if let Some(extra) = doc.get_mut(key_extra) {
+            if let Some(series) = extra.get_mut(key_series) {
+                if Some(section_name) != series.as_str() {
+                    self.is_changed = true;
+                    *series = section_name.into();
+                }
+            }
+        } else {
+            self.is_changed = true;
+            doc[key_extra][key_series] = section_name.into();
+        }
+
+        // Set tags
+        let key_taxonomies = "taxonomies";
+        let key_tags = "tags";
+        let mut force_set_tag = |doc: &mut DocumentMut| {
+            self.is_changed = true;
+            let mut array = toml_edit::Array::new();
+            array.push(section_name);
+            doc[key_taxonomies][key_tags] = array.into();
+        };
+        if let Some(taxonomies) = doc.get_mut(key_taxonomies) {
+            if let Some(tags) = taxonomies.get_mut(key_tags).and_then(|x| x.as_array_mut()) {
+                if !tags.iter().any(|x| x.as_str() == Some(section_name)) {
+                    self.is_changed = true;
+                    tags.push(section_name);
+                }
+            } else {
+                force_set_tag(&mut doc);
+            }
+        } else {
+            force_set_tag(&mut doc);
+        }
+
+        if self.is_changed {
+            self.front_matter = doc.to_string();
+        }
+        Ok(())
     }
 }
