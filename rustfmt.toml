@@ -1,0 +1,2 @@
+# `wrap_comments` is unstable so to use you need to use nightly.
+wrap_comments = true
