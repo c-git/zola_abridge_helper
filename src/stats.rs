@@ -88,10 +88,16 @@ impl AddAssign for Stats {
 
 impl Display for Stats {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            changed,
+            not_changed,
+            skipped,
+            seo_warnings,
+            errors,
+        } = self;
         write!(
             f,
-            "Change: {}, Not Changed: {}, Skipped: {}, Errors: {}",
-            self.changed, self.not_changed, self.skipped, self.errors
+            "Changed: {changed}, Not Changed: {not_changed}, SEO Warnings: {seo_warnings}, Skipped: {skipped}, Errors: {errors}",
         )
     }
 }
