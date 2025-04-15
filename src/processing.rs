@@ -11,7 +11,7 @@ use tracing::{error, trace, warn};
 use self::file_data::FileData;
 mod file_data;
 
-pub fn validate_zola_config(path: &Path) -> anyhow::Result<Stats> {
+pub fn validate_zola_config(path: &Path, cli: &Cli) -> anyhow::Result<Stats> {
     let contents = fs::read_to_string(path)
         .with_context(|| format!("failed to read config at: {:?}", path))?;
     let toml_doc = contents
@@ -19,8 +19,10 @@ pub fn validate_zola_config(path: &Path) -> anyhow::Result<Stats> {
         .with_context(|| format!("Failed to parse config at: {path:?}"))?;
     let mut result = Stats::new();
     let Some(description) = toml_doc.get("description") else {
-        result.inc_seo_warnings();
-        warn!("(SEO) failed to find description in config at: {path:?}");
+        if !cli.ignore_missing_description {
+            result.inc_seo_warnings();
+            warn!("(SEO) failed to find description in config at: {path:?}");
+        }
         return Ok(result);
     };
     let Some(description) = description.as_str() else {

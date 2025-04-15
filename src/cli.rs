@@ -35,6 +35,13 @@ pub struct Cli {
     #[arg(long, short)]
     pub ignore_seo: bool,
 
+    /// When set missing descriptions are ignored
+    ///
+    /// Still validates the length for those that are set
+    /// Only causes missing descriptions to be ignored
+    #[arg(long, short = 'd')]
+    pub ignore_missing_description: bool,
+
     /// If set will not modify any files and only report how many files would
     /// have been changed
     ///

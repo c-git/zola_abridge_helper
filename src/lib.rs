@@ -49,7 +49,7 @@ pub fn run(cli: &Cli) -> anyhow::Result<Stats> {
     let start = Instant::now();
 
     //Check description in config file for SEO length
-    let mut result = validate_zola_config(&root_path.join("config.toml"))?;
+    let mut result = validate_zola_config(&root_path.join("config.toml"), cli)?;
 
     // Walk the content folder tree and process files
     result += check_path(&root_path.join("content"), cli, None)?;
