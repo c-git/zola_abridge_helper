@@ -79,12 +79,14 @@ pub fn check_path(
             sub_section_name = Some(name);
             result += sec_result;
         }
+        let name = if sub_section_name.is_some() {
+            sub_section_name.as_ref().map(|x| x.as_ref())
+        } else {
+            // Use same section name for subfolder that are not sections on their own
+            section_name
+        };
         for entry in dir_entries {
-            result += check_path(
-                &entry.path(),
-                cli,
-                sub_section_name.as_ref().map(|x| x.as_ref()),
-            )?;
+            result += check_path(&entry.path(), cli, name)?;
         }
     }
 
