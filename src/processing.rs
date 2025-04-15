@@ -40,6 +40,7 @@ fn check_description(toml_doc: &DocumentMut, cli: &Cli, path: &Path) -> Stats {
     if !is_description_length_in_preferred_range(description) {
         result.inc_seo_warnings();
         if !cli.ignore_seo {
+            // TODO 4: Find a way to ignore description length on a per file basis. Another field in "extra"?
             warn!(
                 "(SEO) description outside of the preferred range. Actual Length {}. Preferred range: {:?}, Path: {path:?}",
                 description.len(),
