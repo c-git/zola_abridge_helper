@@ -8,15 +8,24 @@ use clap::Parser;
     about,
     long_about = "Performs a few updates and SEO validations as listed below:
     
-    Updates page's front matter if the page is part of a section
-    1. Ensures `tags` includes the name of the section
-    2. Ensures the series is set to the section name
+Updates page's front matter if the page is part of a section
+1. Ensures `tags` includes the name of the section
+2. Ensures the series is set to the section name
+
+Ensures each section has the `transparent` value set (can be true/false but must be present)
+
+SEO Verifications
+1. Ensures that the description in the config.toml is within 140-180 characters
+2. Ensures that the description on the pages is also in the same range    
     
-    Ensures each section has the `transparent` value set (can be true/false but must be present)
-    
-    SEO Verifications
-    1. Ensures that the description in the config.toml is within 140-180 characters
-    2. Ensures that the description on the pages is also in the same range    
+EXCEPTIONS
+Values for sections default to False meaning that checks are enabled.
+Values set for a page override values set at section level
+- disable_check_series: bool
+- disable_check_tag: bool
+- disable_check_description: bool
+
+Note: If `transparent` is set true on the section then the values from the parent section are used.
 "
 )]
 /// Stores the configurations acquired via the command line
