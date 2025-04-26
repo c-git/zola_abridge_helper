@@ -1,6 +1,6 @@
 [package]
 name = "zola_abridge_helper"
-version = "0.1.1-dev"
+version = "0.1.1"
 authors = ["One <one.bgz1@gmail.com>"]
 categories = ["command-line-utilities"]
 documentation = "https://docs.rs/zola_abridge_helper"
