@@ -2,24 +2,30 @@ use std::borrow::Cow;
 
 use crate::TOML_KEY_EXTRA;
 
+/// Note: both `series` and `tag` must use same set of values
 #[derive(Debug, Clone)]
 pub struct SectionInfo {
-    pub section_title: Option<String>,
-    pub section_folder: String,
+    title: Option<String>,
+    folder_name: String,
     pub disable_check_series: bool,
     pub disable_check_tag: bool,
     pub disable_check_description: bool,
 }
 
 impl SectionInfo {
-    pub fn new(section_folder: String) -> Self {
+    pub fn new(title: Option<String>, folder_name: String) -> Self {
         Self {
-            section_title: None,
-            section_folder,
+            title,
+            folder_name,
             disable_check_series: false,
             disable_check_tag: false,
             disable_check_description: false,
         }
+    }
+
+    // Defaults to section title if set otherwise the section foldername is used
+    pub fn section_name(&self) -> &str {
+        self.title.as_ref().unwrap_or(&self.folder_name)
     }
 
     pub fn load_settings(&self, doc: &toml_edit::DocumentMut) -> Cow<Self> {
