@@ -74,7 +74,11 @@ impl<'a> FileData<'a> {
             );
         };
 
-        let mut result_section_info = SectionInfo::new(section_folder);
+        let section_title = doc
+            .get("title")
+            .and_then(|x| x.as_str().map(|s| s.to_string()));
+
+        let mut result_section_info = SectionInfo::new(section_title, section_folder);
         let mut result_stats = Stats::new();
 
         result_section_info = result_section_info.load_settings(&doc).into_owned();
@@ -149,11 +153,7 @@ impl<'a> FileData<'a> {
 
         // Set series
         if !section_info.disable_check_series {
-            let series_name = if let Some(section_title) = section_info.section_title.as_ref() {
-                section_title.as_str()
-            } else {
-                section_info.section_folder.as_str()
-            };
+            let series_name = section_info.section_name();
             let key_series = "series";
 
             // Check if no change is needed
@@ -176,7 +176,7 @@ impl<'a> FileData<'a> {
         let key_taxonomies = "taxonomies";
         let key_tags = "tags";
         if !section_info.disable_check_tag {
-            let tag_name = section_info.section_folder.as_str();
+            let tag_name = section_info.section_name();
             let mut force_set_tag = |doc: &mut DocumentMut| {
                 self.is_changed = true;
                 let mut array = toml_edit::Array::new();

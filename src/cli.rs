@@ -8,9 +8,11 @@ use clap::Parser;
     about,
     long_about = "Performs a few updates and SEO validations as listed below:
     
+Section name: is 'section title' if set or the section folder name
+    
 Updates page's front matter if the page is part of a section
-1. Ensures `tags` includes the name of the folder for the section
-2. Ensures the series is set to the 'section title' falling back to 'folder name' if not set
+1. Ensures `tags` includes the section name
+2. Ensures the series is set to the section name
 
 Ensures each section has the `transparent` value set and is boolean
 
