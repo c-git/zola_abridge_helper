@@ -1,4 +1,4 @@
-use crate::{PREFERRED_RANGE, cli::Cli, stats::Stats};
+use crate::{PREFERRED_RANGE, cli::Cli, section_info::SectionInfo, stats::Stats};
 
 use anyhow::Context;
 use std::{
@@ -55,11 +55,11 @@ fn check_description(toml_doc: &DocumentMut, cli: &Cli, path: &Path) -> Stats {
 pub fn check_path(
     root_path: &Path,
     cli: &Cli,
-    section_name: Option<&str>,
+    section_info: Option<&SectionInfo>,
 ) -> anyhow::Result<Stats> {
     let mut result = Stats::new();
     if root_path.is_file() {
-        match process_file(root_path, cli, section_name)
+        match process_file(root_path, cli, section_info)
             .with_context(|| format!("Processing failed for: {root_path:?}"))
         {
             Ok(stats) => result += stats,
@@ -73,20 +73,19 @@ pub fn check_path(
             .with_context(|| format!("Failed to read directory: {root_path:?}"))?
             .map(|x| x.with_context(|| format!("Failed to extract a DirEntry in {root_path:?}")))
             .collect::<anyhow::Result<Vec<DirEntry>>>()?;
-        let section_info = extract_section_info(&mut dir_entries)?;
-        let mut sub_section_name = None;
-        if let Some((name, sec_result)) = section_info {
-            sub_section_name = Some(name);
+        let mut sub_section_info = None;
+        if let Some((section_info, sec_result)) = extract_section_info(&mut dir_entries)? {
+            sub_section_info = Some(section_info);
             result += sec_result;
         }
-        let name = if sub_section_name.is_some() {
-            sub_section_name.as_ref().map(|x| x.as_ref())
+        let info = if sub_section_info.is_some() {
+            sub_section_info.as_ref()
         } else {
             // Use same section name for subfolder that are not sections on their own
-            section_name
+            section_info
         };
         for entry in dir_entries {
-            result += check_path(&entry.path(), cli, name)?;
+            result += check_path(&entry.path(), cli, info)?;
         }
     }
 
@@ -95,7 +94,7 @@ pub fn check_path(
 
 fn extract_section_info(
     dir_entries: &mut Vec<DirEntry>,
-) -> anyhow::Result<Option<(String, Stats)>> {
+) -> anyhow::Result<Option<(SectionInfo, Stats)>> {
     // Check if there is a file with section information in the folder
     let section_idx = dir_entries.iter().enumerate().find_map(|(i, entry)| {
         if entry.file_name() == "_index.md" {
@@ -127,12 +126,23 @@ fn extract_section_info(
     Ok(Some(result))
 }
 
-fn process_file(path: &Path, cli: &Cli, section_name: Option<&str>) -> anyhow::Result<Stats> {
+fn process_file(
+    path: &Path,
+    cli: &Cli,
+    section_info: Option<&SectionInfo>,
+) -> anyhow::Result<Stats> {
     let mut result = Stats::new();
     if !should_skip_file(path) {
         let mut data = FileData::new_from_path(path)?;
-        result += data.check_description(cli)?;
-        data.update_series_and_tags(section_name)
+        let section_info = if let Some(info) = section_info {
+            let toml_doc = data.front_matter_as_toml()?;
+            Some(info.load_settings(&toml_doc))
+        } else {
+            None
+        };
+        let section_info = section_info.as_deref();
+        result += data.check_description(cli, section_info)?;
+        data.update_series_and_tags(section_info)
             .context("failed to update tags and/or series")?;
         if data.is_changed() {
             result.inc_changed();

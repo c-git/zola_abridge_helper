@@ -6,7 +6,7 @@ use regex::Regex;
 use toml_edit::DocumentMut;
 use tracing::error;
 
-use crate::{Cli, Stats};
+use crate::{Cli, Stats, TOML_KEY_EXTRA, section_info::SectionInfo};
 
 use super::check_description;
 
@@ -49,7 +49,7 @@ impl<'a> FileData<'a> {
         Ok(())
     }
 
-    fn front_matter_as_toml(&self) -> anyhow::Result<DocumentMut> {
+    pub(crate) fn front_matter_as_toml(&self) -> anyhow::Result<DocumentMut> {
         let toml = &self.front_matter[..];
         let result = toml
             .parse::<DocumentMut>()
@@ -60,16 +60,25 @@ impl<'a> FileData<'a> {
 
     /// Extract info about a section (Name and Stats)
     /// Checks the transparent is set and is a boolean
-    pub fn extract_section_info(&self) -> anyhow::Result<(String, Stats)> {
+    pub fn extract_section_info(&self) -> anyhow::Result<(SectionInfo, Stats)> {
         let doc = self.front_matter_as_toml()?;
-        let Some(result_name) = self
+
+        let Some(section_folder) = self
             .path
             .parent()
             .and_then(|x| x.file_name().map(|x| x.to_string_lossy().to_string()))
         else {
-            bail!("failed to get section Name for file at: {:?}", self.path);
+            bail!(
+                "failed to get section folder name for file at: {:?}",
+                self.path
+            );
         };
+
+        let mut result_section_info = SectionInfo::new(section_folder);
         let mut result_stats = Stats::new();
+
+        result_section_info = result_section_info.load_settings(&doc).into_owned();
+
         if !doc.get("transparent").is_some_and(|x| x.is_bool()) {
             error!(
                 "Transparent not set or not bool for section in file at: {:?}",
@@ -77,7 +86,7 @@ impl<'a> FileData<'a> {
             );
             result_stats.inc_errors();
         }
-        Ok((result_name, result_stats))
+        Ok((result_section_info, result_stats))
     }
 
     fn new(path: &'a Path, front_matter: String, content: String) -> Self {
@@ -115,57 +124,80 @@ impl<'a> FileData<'a> {
         Ok(FileData::new(path, front_matter, content))
     }
 
-    pub(crate) fn check_description(&self, cli: &Cli) -> anyhow::Result<Stats> {
+    pub(crate) fn check_description(
+        &self,
+        cli: &Cli,
+        section_info: Option<&SectionInfo>,
+    ) -> anyhow::Result<Stats> {
+        if let Some(section_info) = section_info {
+            if section_info.disable_check_description {
+                return Ok(Stats::default());
+            }
+        }
         let toml_doc = self.front_matter_as_toml()?;
         Ok(check_description(&toml_doc, cli, self.path))
     }
 
     pub(crate) fn update_series_and_tags(
         &mut self,
-        section_name: Option<&str>,
+        section_info: Option<&SectionInfo>,
     ) -> anyhow::Result<()> {
-        let Some(section_name) = section_name else {
+        let Some(section_info) = section_info else {
             return Ok(());
         };
         let mut doc = self.front_matter_as_toml()?;
 
         // Set series
-        let key_extra = "extra";
-        let key_series = "series";
-        if let Some(extra) = doc.get_mut(key_extra) {
-            if let Some(series) = extra.get_mut(key_series) {
-                if Some(section_name) != series.as_str() {
-                    self.is_changed = true;
-                    *series = section_name.into();
+        if !section_info.disable_check_series {
+            let series_name = if let Some(section_title) = section_info.section_title.as_ref() {
+                section_title.as_str()
+            } else {
+                section_info.section_folder.as_str()
+            };
+            let key_series = "series";
+
+            // Check if no change is needed
+            let mut is_change_needed = true;
+            if let Some(extra) = doc.get(TOML_KEY_EXTRA) {
+                if let Some(series) = extra.get(key_series) {
+                    if Some(series_name) == series.as_str() {
+                        // Already equal no need to make any change
+                        is_change_needed = false;
+                    }
                 }
             }
-        } else {
-            self.is_changed = true;
-            doc[key_extra][key_series] = section_name.into();
+            if is_change_needed {
+                self.is_changed = true;
+                doc[TOML_KEY_EXTRA][key_series] = series_name.into();
+            }
         }
 
         // Set tags
         let key_taxonomies = "taxonomies";
         let key_tags = "tags";
-        let mut force_set_tag = |doc: &mut DocumentMut| {
-            self.is_changed = true;
-            let mut array = toml_edit::Array::new();
-            array.push(section_name);
-            doc[key_taxonomies][key_tags] = array.into();
-        };
-        if let Some(taxonomies) = doc.get_mut(key_taxonomies) {
-            if let Some(tags) = taxonomies.get_mut(key_tags).and_then(|x| x.as_array_mut()) {
-                if !tags.iter().any(|x| x.as_str() == Some(section_name)) {
-                    self.is_changed = true;
-                    tags.push(section_name);
+        if !section_info.disable_check_tag {
+            let tag_name = section_info.section_folder.as_str();
+            let mut force_set_tag = |doc: &mut DocumentMut| {
+                self.is_changed = true;
+                let mut array = toml_edit::Array::new();
+                array.push(tag_name);
+                doc[key_taxonomies][key_tags] = array.into();
+            };
+            if let Some(taxonomies) = doc.get_mut(key_taxonomies) {
+                if let Some(tags) = taxonomies.get_mut(key_tags).and_then(|x| x.as_array_mut()) {
+                    if !tags.iter().any(|x| x.as_str() == Some(tag_name)) {
+                        self.is_changed = true;
+                        tags.push(tag_name);
+                    }
+                } else {
+                    force_set_tag(&mut doc);
                 }
             } else {
                 force_set_tag(&mut doc);
             }
-        } else {
-            force_set_tag(&mut doc);
         }
 
+        // Save changes if any
         if self.is_changed {
             self.front_matter = doc.to_string();
         }
