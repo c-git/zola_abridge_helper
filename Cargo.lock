@@ -1469,7 +1469,7 @@ dependencies = [
 
 [[package]]
 name = "zola_abridge_helper"
-version = "0.1.3-dev"
+version = "0.1.3"
 dependencies = [
  "anyhow",
  "clap",
