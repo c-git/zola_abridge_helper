@@ -7,6 +7,7 @@
 
 mod cli;
 mod processing;
+mod section_info;
 mod stats;
 
 use crate::processing::check_path;
@@ -21,6 +22,7 @@ pub use cli::Cli;
 pub use stats::Stats;
 
 const PREFERRED_RANGE: RangeInclusive<usize> = 140..=180;
+const TOML_KEY_EXTRA: &str = "extra";
 
 /// Runs the body of the logic
 pub fn run(cli: &Cli) -> anyhow::Result<Stats> {
